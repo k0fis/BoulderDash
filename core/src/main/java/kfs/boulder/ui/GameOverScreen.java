@@ -1,6 +1,9 @@
 package kfs.boulder.ui;
 
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Input;
+import com.badlogic.gdx.InputAdapter;
+import com.badlogic.gdx.InputMultiplexer;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
@@ -17,6 +20,8 @@ public class GameOverScreen extends BaseScreen {
     private final Table table;
     private static final String CHAR_SET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ";
     private final char[] nameChars = {' ', ' ', ' ', ' ', ' ', ' '};
+    private int cursorPos = 0;
+    private TextButton[] letterButtons;
 
     public GameOverScreen(KfsMain game, int score, String mapName) {
         super(game, true);
@@ -33,7 +38,65 @@ public class GameOverScreen extends BaseScreen {
 
     @Override
     public void show() {
-        Gdx.input.setInputProcessor(stage);
+        InputMultiplexer mux = new InputMultiplexer();
+        mux.addProcessor(stage);
+        mux.addProcessor(new InputAdapter() {
+            @Override
+            public boolean keyTyped(char character) {
+                if (letterButtons == null) return false;
+                char upper = Character.toUpperCase(character);
+                if (CHAR_SET.indexOf(upper) >= 0 && cursorPos < nameChars.length) {
+                    nameChars[cursorPos] = upper;
+                    updateButton(cursorPos);
+                    cursorPos = Math.min(cursorPos + 1, nameChars.length - 1);
+                    updateCursorHighlight();
+                    return true;
+                }
+                return false;
+            }
+
+            @Override
+            public boolean keyDown(int keycode) {
+                if (letterButtons == null) return false;
+                if (keycode == Input.Keys.BACKSPACE) {
+                    nameChars[cursorPos] = ' ';
+                    updateButton(cursorPos);
+                    cursorPos = Math.max(cursorPos - 1, 0);
+                    updateCursorHighlight();
+                    return true;
+                }
+                if (keycode == Input.Keys.LEFT) {
+                    cursorPos = Math.max(cursorPos - 1, 0);
+                    updateCursorHighlight();
+                    return true;
+                }
+                if (keycode == Input.Keys.RIGHT) {
+                    cursorPos = Math.min(cursorPos + 1, nameChars.length - 1);
+                    updateCursorHighlight();
+                    return true;
+                }
+                return false;
+            }
+        });
+        Gdx.input.setInputProcessor(mux);
+    }
+
+    private void updateButton(int pos) {
+        if (letterButtons != null && pos >= 0 && pos < letterButtons.length && letterButtons[pos] != null) {
+            letterButtons[pos].setText(nameChars[pos] == ' ' ? "_" : String.valueOf(nameChars[pos]));
+        }
+    }
+
+    private void updateCursorHighlight() {
+        if (letterButtons == null) return;
+        for (int i = 0; i < letterButtons.length; i++) {
+            if (letterButtons[i] == null) continue;
+            if (i == cursorPos) {
+                letterButtons[i].setColor(Color.CYAN);
+            } else {
+                letterButtons[i].setColor(Color.WHITE);
+            }
+        }
     }
 
     private void showEnterName() {
@@ -41,8 +104,9 @@ public class GameOverScreen extends BaseScreen {
         addHeader();
 
         Label.LabelStyle hintStyle = new Label.LabelStyle(fontSmall, Color.GRAY);
-        table.add(new Label("TAP TO CHANGE", hintStyle)).padBottom(15).row();
+        table.add(new Label("TYPE OR TAP", hintStyle)).padBottom(15).row();
 
+        letterButtons = new TextButton[nameChars.length];
         Table nameRow = new Table();
         for (int i = 0; i < nameChars.length; i++) {
             final int pos = i;
@@ -52,14 +116,18 @@ public class GameOverScreen extends BaseScreen {
             letterBtn.addListener(new ClickListener() {
                 @Override
                 public void clicked(InputEvent event, float x, float y) {
+                    cursorPos = pos;
                     int idx = CHAR_SET.indexOf(nameChars[pos]);
                     nameChars[pos] = CHAR_SET.charAt((idx + 1) % CHAR_SET.length());
                     letterBtn.setText(nameChars[pos] == ' ' ? "_" : String.valueOf(nameChars[pos]));
+                    updateCursorHighlight();
                 }
             });
+            letterButtons[pos] = letterBtn;
             nameRow.add(letterBtn).width(55).height(60).pad(3);
         }
         table.add(nameRow).padBottom(20).row();
+        updateCursorHighlight();
 
         TextButton submitButton = new TextButton("SUBMIT", getTextButtonStyle(fontMiddle, Color.LIME));
         submitButton.addListener(new ClickListener() {
