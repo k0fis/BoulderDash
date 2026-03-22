@@ -38,3 +38,17 @@ jobs:
           name: Build ${{ steps.sha.outputs.short }}
           files: boulderdash-web.tar.gz
           make_latest: true
+
+      - name: Deploy to server
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p ${{ secrets.DEPLOY_PORT }} ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+          scp -i ~/.ssh/deploy_key -P ${{ secrets.DEPLOY_PORT }} boulderdash-web.tar.gz ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/tmp/
+          ssh -i ~/.ssh/deploy_key -p ${{ secrets.DEPLOY_PORT }} ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} '
+            mkdir -p ~/www/kuba/gm003 &&
+            rm -rf ~/www/kuba/gm003/* &&
+            tar -xzf /tmp/boulderdash-web.tar.gz -C ~/www/kuba/gm003 &&
+            rm -f /tmp/boulderdash-web.tar.gz
+          '
