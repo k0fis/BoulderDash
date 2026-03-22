@@ -1,0 +1,176 @@
+package kfs.boulder.ui;
+
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.scenes.scene2d.InputEvent;
+import com.badlogic.gdx.scenes.scene2d.ui.Label;
+import com.badlogic.gdx.scenes.scene2d.ui.Table;
+import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
+import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
+import kfs.boulder.KfsMain;
+import kfs.boulder.ScoreClient;
+
+public class GameOverScreen extends BaseScreen {
+
+    private final int score;
+    private final String mapName;
+    private final Table table;
+    private static final String CHAR_SET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ";
+    private final char[] nameChars = {' ', ' ', ' ', ' ', ' ', ' '};
+
+    public GameOverScreen(KfsMain game, int score, String mapName) {
+        super(game, true);
+        this.score = score;
+        this.mapName = mapName;
+
+        table = new Table();
+        table.setFillParent(true);
+        table.center();
+        stage.addActor(table);
+
+        showEnterName();
+    }
+
+    @Override
+    public void show() {
+        Gdx.input.setInputProcessor(stage);
+    }
+
+    private void showEnterName() {
+        table.clear();
+        addHeader();
+
+        Label.LabelStyle hintStyle = new Label.LabelStyle(fontSmall, Color.GRAY);
+        table.add(new Label("TAP TO CHANGE", hintStyle)).padBottom(15).row();
+
+        Table nameRow = new Table();
+        for (int i = 0; i < nameChars.length; i++) {
+            final int pos = i;
+            TextButton letterBtn = new TextButton(
+                nameChars[pos] == ' ' ? "_" : String.valueOf(nameChars[pos]),
+                getTextButtonStyle(fontBig, Color.WHITE));
+            letterBtn.addListener(new ClickListener() {
+                @Override
+                public void clicked(InputEvent event, float x, float y) {
+                    int idx = CHAR_SET.indexOf(nameChars[pos]);
+                    nameChars[pos] = CHAR_SET.charAt((idx + 1) % CHAR_SET.length());
+                    letterBtn.setText(nameChars[pos] == ' ' ? "_" : String.valueOf(nameChars[pos]));
+                }
+            });
+            nameRow.add(letterBtn).width(55).height(60).pad(3);
+        }
+        table.add(nameRow).padBottom(20).row();
+
+        TextButton submitButton = new TextButton("SUBMIT", getTextButtonStyle(fontMiddle, Color.LIME));
+        submitButton.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                String name = new String(nameChars).trim();
+                if (name.isEmpty()) name = "AAA";
+                showSubmitting();
+                ScoreClient.submitScore(name, score, new ScoreClient.SubmitCallback() {
+                    @Override
+                    public void onSuccess(long rank, int personalBest, boolean isNewRecord) {
+                        showResult(rank, personalBest, isNewRecord);
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        showError("NETWORK ERROR");
+                    }
+                });
+            }
+        });
+        table.add(submitButton).width(250).height(60).padBottom(20).row();
+
+        addBottomButtons();
+    }
+
+    private void showSubmitting() {
+        table.clear();
+        addHeader();
+
+        Label.LabelStyle style = new Label.LabelStyle(fontMiddle, Color.CYAN);
+        table.add(new Label("SUBMITTING...", style)).padBottom(60).row();
+    }
+
+    private void showResult(long rank, int personalBest, boolean isNewRecord) {
+        table.clear();
+        addHeader();
+
+        if (isNewRecord) {
+            Label.LabelStyle recordStyle = new Label.LabelStyle(fontMiddle, Color.LIME);
+            table.add(new Label("#" + rank + " NEW RECORD!", recordStyle)).padBottom(10).row();
+        } else {
+            Label.LabelStyle rankStyle = new Label.LabelStyle(fontMiddle, Color.CYAN);
+            table.add(new Label("RANK #" + rank, rankStyle)).padBottom(10).row();
+        }
+
+        Label.LabelStyle bestStyle = new Label.LabelStyle(fontSmall, Color.WHITE);
+        table.add(new Label("BEST: " + personalBest, bestStyle)).padBottom(40).row();
+
+        TextButton lbButton = new TextButton("LEADERBOARD", getTextButtonStyle(fontMiddle, Color.GOLD));
+        lbButton.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                game.setScreen(new LeaderboardScreen(game));
+            }
+        });
+        table.add(lbButton).width(350).height(60).padBottom(20).row();
+
+        addBottomButtons();
+    }
+
+    private void showError(String message) {
+        table.clear();
+        addHeader();
+
+        Label.LabelStyle errStyle = new Label.LabelStyle(fontMiddle, Color.RED);
+        table.add(new Label(message, errStyle)).padBottom(40).row();
+
+        TextButton retryButton = new TextButton("RETRY", getTextButtonStyle(fontMiddle, Color.YELLOW));
+        retryButton.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                showEnterName();
+            }
+        });
+        table.add(retryButton).width(250).height(60).padBottom(20).row();
+
+        addBottomButtons();
+    }
+
+    private void addHeader() {
+        Label.LabelStyle titleStyle = new Label.LabelStyle(fontBig, Color.LIME);
+        table.add(new Label("YOU WIN!", titleStyle)).padBottom(20).row();
+
+        Label.LabelStyle mapStyle = new Label.LabelStyle(fontSmall, Color.WHITE);
+        table.add(new Label(mapName, mapStyle)).padBottom(10).row();
+
+        Label.LabelStyle scoreStyle = new Label.LabelStyle(fontMiddle, Color.YELLOW);
+        table.add(new Label("SCORE: " + score, scoreStyle)).padBottom(30).row();
+    }
+
+    private void addBottomButtons() {
+        String nextLevel = game.getMap(mapName);
+        if (nextLevel != null) {
+            TextButton nextButton = new TextButton("NEXT LEVEL", getTextButtonStyle(fontMiddle, Color.WHITE));
+            nextButton.addListener(new ClickListener() {
+                @Override
+                public void clicked(InputEvent event, float x, float y) {
+                    game.setScreen(new BoulderDashScreen(game, nextLevel));
+                }
+            });
+            table.add(nextButton).width(300).height(60).padBottom(20).row();
+        }
+
+        TextButton menuButton = new TextButton("MENU", getTextButtonStyle(fontMiddle, Color.WHITE));
+        menuButton.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                game.setScreen(new MainScreen(game));
+            }
+        });
+        table.add(menuButton).width(250).height(60).padBottom(20).row();
+    }
+}

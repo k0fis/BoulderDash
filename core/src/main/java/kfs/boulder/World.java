@@ -128,6 +128,13 @@ public class World extends KfsWorld {
         return textures.get(tile);
     }
 
+    public int getScore() {
+        for (Entity e : getEntitiesWith(PlayerComp.class)) {
+            return getComponent(e, PlayerComp.class).gemsEaten * 100;
+        }
+        return 0;
+    }
+
     public void gameOver(boolean win) {
         gameOverCallback.accept(win);
     }

@@ -20,10 +20,9 @@ public class BoulderDashScreen extends BaseScreen {
     private final OrthographicCamera camera;
     private final Viewport viewport;
     private final SpriteBatch batch;
-    private final World world;
+    private World world;
     private Stage uiStage;
     private Label scoreLabel;
-    private float score = 0;
 
     public BoulderDashScreen(KfsMain game, String mapName) {
         super(game, true);
@@ -34,9 +33,13 @@ public class BoulderDashScreen extends BaseScreen {
         viewport.apply();
 
         batch = new SpriteBatch();
-        world = new World(win ->
-            game.setScreen(new LevelDoneScreen(game, win, win?"You collect all GEMS":"Try it again", mapName))
-        );
+        world = new World(win -> {
+            if (win) {
+                game.setScreen(new GameOverScreen(game, world.getScore(), mapName));
+            } else {
+                game.setScreen(new LevelDoneScreen(game, false, "Try it again", mapName));
+            }
+        });
 
         world.addSys(new CameraUpdateSys(camera, world));
 
@@ -102,11 +105,8 @@ public class BoulderDashScreen extends BaseScreen {
         world.render(batch);
         batch.end();
 
-        // --- Update UI (score, etc.) ---
-        // Here you can read score from your World or Player system
-        // For demo, we just increment score slowly
-        score += delta;
-        scoreLabel.setText("Score: " + (int)score);
+        // --- Update UI (score) ---
+        scoreLabel.setText("Score: " + world.getScore());
 
         // --- Draw UI ---
         uiStage.act(delta);
